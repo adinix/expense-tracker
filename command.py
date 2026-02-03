@@ -31,6 +31,6 @@ class Command:
                     print(f"{i+1}: {handlers[i].desc}")
                 choice = 0
                 while choice > len(handlers) or choice < 1:
-                    choice = int(input("Select a command to run (enter the number):"))
+                    choice = int(input("Select a command to run (enter the number): "))
                 handler = handlers[choice-1]
                 handler.func()
