@@ -2,10 +2,25 @@ from datetime import datetime
 from transaction import Transaction
 from expense_tracker import ExpenseTracker
 from command import Command, Handler
-from store import MemoryStore
+from store import MemoryStore, PostgreStore
 import helpers
+from dotenv import load_dotenv
+import os
 
-store = MemoryStore()
+load_dotenv()
+db_driver = os.environ.get("DBDRIVER")
+
+if db_driver == "postgres":
+    store = PostgreStore(
+        dbname=os.getenv("DBNAME"),
+        user=os.getenv("USER"), 
+        password=os.getenv("PASSWORD"),
+        host=os.getenv("HOST"),
+        port=os.getenv("PORT")
+    )
+else:
+    store = MemoryStore()
+    
 exp_tracker = ExpenseTracker(store)
 
 def add_transaction():

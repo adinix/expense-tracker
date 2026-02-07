@@ -1,5 +1,7 @@
 from transaction import Transaction
 from datetime import datetime
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 class Filter:
     def __init__(self, type: str = None, category: str = None, start_date: datetime = None, end_date: datetime = None):
@@ -156,3 +158,75 @@ class MemoryStore(Store):
                 else:
                     greater.append(category_list[i])
             return self.sort_category_items(greater) + [pivot] + self.sort_category_items(less)
+
+
+class PostgreStore(Store):
+    def __init__(self, dbname, user, password, host, port):
+        self.conn = psycopg2.connect(
+            dbname = dbname,
+            user = user,
+            password = password,
+            host = host,
+            port = port
+        )
+         
+    def create_transactions(self, trx: Transaction):
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO transactions (amount, type, category, transaction_datetime, description) VALUES (%s, %s, %s, %s, %s)", (trx.amount, trx.transaction_type, trx.category, trx.date, trx.description)
+            )
+            self.conn.commit()
+            cur.close()
+    
+    def get_transaction(self, index: int):
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT * from transactions where id = %s", (index)
+            )
+            row = cur.fetchone() 
+            return(Transaction(row['amount'], row['category'], row['date'], row['transaction_type']))
+    
+    def get_transactions(self, filter: Filter):
+        query = "SELECT * from transactions"
+        conditions = []
+        values = []
+        if filter.type != None:
+            conditions.append("type = %s")
+            values.append(filter.type)
+            
+        if filter.category != None:
+            conditions.append("category = %s")
+            values.append(filter.category)
+        
+        if filter.start_date != None:
+            conditions.append("transaction_datetime >= %s")
+            values.append(filter.start_date)
+            
+        if filter.end_date != None:
+            conditions.append("transaction_datetime <= %s")
+            values.append(filter.end_date)
+        
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, values)
+            
+            rows = cur.fetchall()
+        rows_list = []
+        for row in rows:
+            rows_list.append(Transaction(
+                amount = row['amount'],
+                description = row['description'],
+                date = row['transaction_datetime'],
+                transaction_type= row['type'],
+                category= row['category']
+            ))
+        return rows_list
+    
+    def delete_transaction(self, index: int):
+        pass
+    
+    def aggregate_by_category(self, filter: CategoryAggregationFilter):
+        pass
+    
+    def aggregate_by_type(self, filter: TypeAggregationFilter):
+        pass
